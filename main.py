@@ -27,13 +27,16 @@ def main():
     ])
     
     # Evaluate and collect metrics
+    rmse_eval = RegressionEvaluator(labelCol="label", predictionCol="prediction", metricName="rmse")
+    r2_eval = RegressionEvaluator(labelCol="label", predictionCol="prediction", metricName="r2")
+
     summary_metrics = []
+    # In main.py
     for name, model in best_results.items():
         preds = model.transform(test)
-        r2 = evaluator.setMetricName("r2").evaluate(preds)
-        rmse = evaluator.setMetricName("rmse").evaluate(preds)
+        r2 = RegressionEvaluator(metricName="r2").evaluate(preds)
+        rmse = RegressionEvaluator(metricName="rmse").evaluate(preds)
         summary_metrics.append((name, r2, rmse))
-    
     # Save
     manager = ResultsManager(spark)
     manager.save_metrics_to_csv(summary_metrics, config.METRICS_CSV_PATH)

@@ -23,7 +23,7 @@ class ResultsManager:
             "Model\t\tR2\t\tRMSE" 
         ]
         for name, r2, rmse in metrics_list:
-            report_lines.append(f"{name}\t{r2:.4f}\t{rmse:.4f}")
+            report_lines.append(f"{name}\t{r2}\t{rmse}")
         
         report_str = "\n".join(report_lines)
         report_df = self.spark.createDataFrame([(report_str,)], ["report"])
