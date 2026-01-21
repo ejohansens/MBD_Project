@@ -31,13 +31,13 @@ class ModelFactory:
         return rf, None 
 
     def build_xgboost(self):
-        # XGBOOST Regressor
+        # XGBOOST Regressor using config params
         from xgboost.spark import SparkXGBRegressor
-        
         
         xgb = SparkXGBRegressor(
             features_col="features", 
             label_col="label",
+            importance_type='gain', # Added to enable importance extraction
             max_depth=config.MODEL_PARAMS["XGBoost"]["max_depth"],
             learning_rate=config.MODEL_PARAMS["XGBoost"]["learning_rate"],
             n_estimators=config.MODEL_PARAMS["XGBoost"]["n_estimators"]
@@ -49,9 +49,8 @@ class ModelFactory:
         # Simple fit for each model in the comparison queue
         best_models = {}
         for name, (model, grid) in model_tuples:
-            print(f"[MODEL] Training {name} with Simple Fit (No K-Fold)...")
+            print(f"[MODEL] Training {name} with Simple Fit")
             
-          
             best_models[name] = model.fit(self.train_data)
             
         return best_models

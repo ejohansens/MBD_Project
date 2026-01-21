@@ -16,6 +16,18 @@ class ResultsManager:
         )
         print(f"[STORAGE] Metrics CSV folder saved to HDFS: {path}")
 
+    def save_importance_to_csv(self, importance_list, path):
+        # Create DataFrame from importance rankings
+        df = self.spark.createDataFrame(importance_list, ["Model", "Feature", "Weight"])
+        
+        # Save to hdfs
+        df.coalesce(1).write.csv(
+            path, 
+            header=True, 
+            mode="overwrite"
+        )
+        print(f"[STORAGE] Feature Importance CSV folder saved to HDFS: {path}")
+
     def save_summary_report(self, metrics_list, total_games, path):
         report_lines = [
             "Final Model Comparison Report",

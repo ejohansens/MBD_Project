@@ -17,29 +17,57 @@ def main():
     train, test = ml_ready_data.randomSplit(config.TRAIN_TEST_SPLIT, seed=42)
     
     # Train the models
-    evaluator = RegressionEvaluator(labelCol="label", predictionCol="prediction", metricName="r2")
+    evaluator = RegressionEvaluator(labelCol="label", predictionCol="prediction", metricName="rmse")
     factory = ModelFactory(train, evaluator)
     
-    best_results = factory.run_comparison([
-        ("LinearRegression", factory.build_lr()),
-        ("RandomForest", factory.build_rf()),
-        ("XGBoost", factory.build_xgboost())
-    ])
-    
-    # Evaluate and collect metrics
-    rmse_eval = RegressionEvaluator(labelCol="label", predictionCol="prediction", metricName="rmse")
-    r2_eval = RegressionEvaluator(labelCol="label", predictionCol="prediction", metricName="r2")
+    best_results = {}
+    # Use simple fit to compare models efficiently
+    models_to_compare = [
+        ("LinearRegression", factory.build_lr()[0]),
+        ("RandomForest", factory.build_rf()[0]),
+        ("XGBoost", factory.build_xgboost()[0])
+    ]
 
+    # Evaluate and collect metrics
     summary_metrics = []
-    # In main.py
-    for name, model in best_results.items():
+    for name, model_obj in models_to_compare:
+        print(f"Training {name}...")
+        model = model_obj.fit(train)
+        best_results[name] = model
+        
         preds = model.transform(test)
-        r2 = RegressionEvaluator(metricName="r2").evaluate(preds)
-        rmse = RegressionEvaluator(metricName="rmse").evaluate(preds)
+        
+        # Create unique evaluators for each call to fix the duplicate metric bug
+        r2 = RegressionEvaluator(metricName="r2", labelCol="label").evaluate(preds)
+        rmse = RegressionEvaluator(metricName="rmse", labelCol="label").evaluate(preds)
+        
         summary_metrics.append((name, r2, rmse))
+    
+    # Extract Feature Importances Safely
+    feature_names = ["m1_ratio", "log_m1_count"] 
+    importance_list = []
+    for name, model in best_results.items():
+        try:
+            if name == "LinearRegression":
+                weights = model.coefficients.toArray()
+            elif name == "RandomForest":
+                weights = model.featureImportances.toArray()
+            else: # XGBoost
+                
+                booster = model.get_booster()
+               
+                importance_dict = booster.get_score(importance_type="weight")
+                weights = [importance_dict.get(f'f{i}', 0.0) for i in range(len(feature_names))]
+            for i, w in enumerate(weights):
+                if i < len(feature_names):
+                    importance_list.append((name, feature_names[i], float(w)))
+        except Exception as e:
+            print(f"Could not get importance for {name}: {e}")
+
     # Save
     manager = ResultsManager(spark)
     manager.save_metrics_to_csv(summary_metrics, config.METRICS_CSV_PATH)
+    manager.save_importance_to_csv(importance_list, config.IMPORTANCE_PATH)
     print(manager.save_summary_report(summary_metrics, ml_ready_data.count(), config.REPORT_PATH))
 
 if __name__ == "__main__":
